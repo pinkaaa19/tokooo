@@ -65,13 +65,13 @@ Route::get('/get-cities/{provinceId}', [CheckoutController::class, 'getCities'])
 Route::get('/get-ongkir-distance', [CheckoutController::class, 'getOngkirDistance'])->name('ongkir.distance');
 Route::post('/checkout/process', [CheckoutController::class, 'process'])->name('checkout.process');
 
-// SOLUSI DUPLIKAT 'order.payment': Dibedakan namanya
+// NAMA BARU AGAR TIDAK BENTROK GLOBAL
 Route::get('/checkout/payment/{id}', [CheckoutController::class, 'payment'])->name('checkout.payment.page');
-Route::get('/payment/{id}', [CheckoutController::class, 'payment'])->name('order.payment');
+Route::get('/payment/{id}', [CheckoutController::class, 'payment'])->name('customer.order.payment.page'); 
 
-// SOLUSI DUPLIKAT 'order.upload': Dibedakan namanya
+// NAMA BARU AGAR TIDAK BENTROK GLOBAL
 Route::post('/payment/{id}/upload', [CheckoutController::class, 'uploadProof'])->name('order.upload.proof');
-Route::post('/order/upload/{id}', [CheckoutController::class, 'uploadProof'])->name('order.upload');
+Route::post('/order/upload/{id}', [CheckoutController::class, 'uploadProof'])->name('customer.order.upload.page');
 
 Route::get('/order/success/{id}', [CheckoutController::class, 'success'])->name('order.success');
 Route::get('/orders', [CheckoutController::class, 'history'])->name('orders.history');
