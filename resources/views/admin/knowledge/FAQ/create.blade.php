@@ -11,7 +11,7 @@
 </div>
 
 <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-gray-100 max-w-2xl mx-auto">
-    <form action="{{ route('admin.faq.store') }}" method="POST" class="space-y-6">
+    <form action="{{ route('faq.store') }}" method="POST" class="space-y-6">
         @csrf
         
         {{-- INPUT PERTANYAAN --}}
@@ -22,7 +22,7 @@
 
         {{-- INPUT KATEGORI (FITUR KMS) --}}
         <div>
-           
+            <label class="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2">Kategori Distribusi Pengetahuan</label>
             <div class="flex flex-wrap gap-3">
                 @foreach(['Tas', 'Kain', 'Pakaian', 'Aksesoris', 'Ukiran&Pajangan'] as $cat)
                     <label class="cursor-pointer">
@@ -42,7 +42,7 @@
         </div>
 
         <div class="pt-4 flex justify-end">
-            <button type="submit" class="bg-black text-white px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#8B0000] transition shadow-md">
+            <button type="submit" class="bg-black text-white px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#8B0000] transition shadow-md cursor-pointer">
                 Terbitkan FAQ Produk
             </button>
         </div>
