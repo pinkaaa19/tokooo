@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
-
-
 class CheckoutController extends Controller
 {
     public function index(Request $request)
@@ -39,7 +37,7 @@ class CheckoutController extends Controller
                     $imageName = $imgObj ? $imgObj->image : 'default.jpg';
 
                     $checkoutItems[] = [
-                        'id' => $product->id, // Tambahkan ID
+                        'id' => $product->id, 
                         'name' => $product->name,
                         'price' => $product->price,
                         'image' => $imageName,
@@ -65,160 +63,167 @@ class CheckoutController extends Controller
         ));
     }
 
- // Tambahkan import ini di bagian paling atas controller bersama use lainnya jika belum ada:
-// use Illuminate\Support\Facades\Session;
-
-public function process(Request $request)
-{
-    // PERBAIKAN BARIS 70: Menggunakan $request->session() atau Session::get()
-    $cart = $request->session()->get('cart', []);
-    if (empty($cart)) return back()->with('error', 'Keranjang kosong!');
-
-    // Hitung total harga barang saja
-    $totalPriceItems = 0;
-    foreach ($cart as $item) {
-        $totalPriceItems += ($item['price'] * $item['quantity']);
-    }
-
-    DB::beginTransaction();
-    try {
-        $order = Order::create([
-            'user_id'            => Auth::id(),
-            'invoice_number'     => 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(5)),
-            'total_price_items'  => $totalPriceItems,
-            'shipping_cost'      => $request->shipping_cost,
-            'grand_total'        => $request->grand_total,
-            'address_detail'     => $request->address_detail, // Dari input hidden
-            'status'             => 'pending',
-        ]);
-
-        // Simpan rincian barang ke orders_item
-        foreach ($cart as $key => $details) {
-            $productId = explode('-', $key)[0];
-            OrderItem::create([
-                'order_id'   => $order->id,
-                'product_id' => $productId,
-                'quantity'   => $details['quantity'],
-                'price'      => $details['price'],
-            ]);
+    public function process(Request $request)
+    {
+        // 1. Ambil array product_ids dari form input eksternal
+        $productIds = $request->input('product_ids', []);
+        
+        // Cadangan Sistem: Jika form kiriman kosong, paksa baca isi session cart
+        if (empty($productIds)) {
+            $cartBackup = $request->session()->get('cart', []);
+            foreach ($cartBackup as $key => $details) {
+                $productIds[] = explode('-', $key)[0];
+            }
         }
 
-        // PERBAIKAN BARIS 102: Menggunakan $request->session() atau Session::forget()
-        $request->session()->forget('cart'); // Kosongkan keranjang
-        DB::commit();
-
-        return redirect()->route('order.payment', $order->id);
-
-    } catch (\Exception $e) {
-        DB::rollback();
-        return back()->with('error', 'Gagal: ' . $e->getMessage());
-    }
-    
-    // Catatan: Kode dd($request->all()) di bawah catch sebaiknya dihapus karena tidak akan pernah dieksekusi setelah perintah return
-}
-public function payment(int $id)
-{
-    $order = Order::findOrFail($id);
-    
-    // Keamanan: Pastikan hanya pemilik order yang bisa akses
-    if ($order->user_id !== Auth::id()) {
-        abort(403);
-    }
-
-    return view('checkout.payment', compact('order'));
-}
-
-public function uploadProof(Request $request,int $id)
-{
-    $request->validate([
-        'payment_proof' => 'required|image|mimes:jpg,png,jpeg|max:2048',
-    ]);
-
-    $order = Order::findOrFail($id);
-
-    if ($request->hasFile('payment_proof')) {
-        // Simpan foto ke folder storage/app/public/payments
-        $path = $request->file('payment_proof')->store('payments', 'public');
-        
-        // Update database: simpan path foto dan ubah status
-        $order->update([
-            'payment_proof' => $path,
-            'status'        => 'waiting_confirmation' // Status berubah setelah upload
+        // 2. Validasi kelengkapan data form utama
+        $request->validate([
+            'address_detail' => 'required|string',
+            'shipping_cost'  => 'required|numeric',
+            'grand_total'    => 'required|numeric',
         ]);
 
-        return redirect()->route('order.success', $order->id);
+        if (empty($productIds)) {
+            return back()->with('error', 'Gagal memproses transaksi: Tidak ada produk yang terdeteksi untuk dicheckout.')->withInput();
+        }
+
+        DB::beginTransaction();
+        try {
+            // 3. Buat data transaksi utama di tabel orders
+            $order = Order::create([
+                'user_id'            => Auth::id(),
+                'invoice_number'     => 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(5)),
+                'total_price_items'  => $request->grand_total - $request->shipping_cost,
+                'shipping_cost'      => $request->shipping_cost,
+                'grand_total'        => $request->grand_total,
+                'address_detail'     => $request->address_detail,
+                'status'             => 'pending',
+            ]);
+
+            // 4. Simpan rincian barang menggunakan nama kolom tunggal database 'product_id'
+            foreach ($productIds as $productId) {
+                $product = Product::find($productId);
+                if ($product) {
+                    OrderItem::create([
+                        'order_id'   => $order->id,
+                        'product_id' => $product->id, // Mencegah eror Column Not Found
+                        'quantity'   => 1,
+                        'price'      => $product->price,
+                    ]);
+
+                    // Jalur Pengaman Penghapusan Record Keranjang Belanja (Anti Eror SQLSTATE 1146)
+                    try {
+                        DB::table('cart')->where('user_id', Auth::id())->where('product_id', $product->id)->delete();
+                    } catch (\Exception $e) {
+                        DB::table('carts')->where('user_id', Auth::id())->where('product_id', $product->id)->delete();
+                    }
+                }
+            }
+
+            // 5. Hapus data session lama dan simpan perubahan permanen
+            $request->session()->forget('cart');
+            DB::commit();
+
+            // SINKRONISASI MUTLAK: Mengalihkan user secara instan menuju halaman pembayaran bukti transfer
+            return redirect()->route('order.payment', $order->id);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', 'Gagal memproses transaksi: ' . $e->getMessage())->withInput();
+        }
     }
 
-    return back()->with('error', 'Gagal mengunggah gambar.');
-}
+    public function payment(int $id)
+    {
+        $order = Order::findOrFail($id);
+        
+        if ($order->user_id !== Auth::id()) {
+            abort(403);
+        }
 
-public function success(int $id)
-{
-    $order = Order::findOrFail($id);
-    return view('checkout.success', compact('order'));
-}
-
-public function history(Request $request)
-{
-    $currentStatus = $request->get('status', 'all'); // Ambil parameter status, default 'all'
-    $user = Auth::user();
-
-    // Query dasar: ambil pesanan milik user yang sedang login
-    $query = Order::with(['items.product'])->where('user_id', $user->id);
-
-    // Logika Filter Status
-    if ($currentStatus !== 'all') {
-        // Sesuaikan string status ('pending', 'dikemas', dll) dengan yang ada di database Anda
-        $query->where('status', $currentStatus);
+        return view('checkout.payment', compact('order'));
     }
 
-    $orders = $query->latest()->get();
+    public function uploadProof(Request $request, int $id)
+    {
+        $request->validate([
+            'payment_proof' => 'required|image|mimes:jpg,png,jpeg|max:2048',
+        ]);
 
-    return view('pesanansaya', compact('orders'));
-}
-public function show(int $id)
-{
-    // Ambil order berdasarkan ID, pastikan hanya milik user yang login
-    $order = Order::with('items.product')->where('user_id', Auth::id())->findOrFail($id);
+        $order = Order::findOrFail($id);
 
-    return view('rinciansaya', compact('order'));
-}
+        if ($request->hasFile('payment_proof')) {
+            $path = $request->file('payment_proof')->store('payments', 'public');
+            
+            $order->update([
+                'payment_proof' => $path,
+                'status'        => 'waiting_confirmation'
+            ]);
+
+            return redirect()->route('order.success', $order->id);
+        }
+
+        return back()->with('error', 'Gagal mengunggah gambar.');
+    }
+
+    public function success(int $id)
+    {
+        $order = Order::findOrFail($id);
+        return view('checkout.success', compact('order'));
+    }
+
+    public function history(Request $request)
+    {
+        $currentStatus = $request->get('status', 'all');
+        $user = Auth::user();
+
+        $query = Order::with(['items.product'])->where('user_id', $user->id);
+
+        if ($currentStatus !== 'all') {
+            $query->where('status', $currentStatus);
+        }
+
+        $orders = $query->latest()->get();
+
+        return view('pesanansaya', compact('orders'));
+    }
+
+    public function show(int $id)
+    {
+        $order = Order::with('items.product')->where('user_id', Auth::id())->findOrFail($id);
+        return view('rinciansaya', compact('order'));
+    }
+
     public function getCities(int $provinceId)
     {
         $cities = City::where('province_id', $provinceId)->get();
         return response()->json($cities);
     }
-public function getOngkirDistance(Request $request)
-{
-    try {
-        // 1. DATA INPUT
-        $distance = $request->query('distance'); 
-        $weightInGram = $request->query('weight') ?? 1000;
-        $weightKg = ceil($weightInGram / 1000); // Pembulatan ke atas (misal 1.2kg jadi 2kg)
 
-        // 2. KONFIGURASI TARIF SERAGAM
-        $pricePerKm = 200;   // Tarif Jarak
-        $pricePerKg = 15000; // Tarif Berat 
+    public function getOngkirDistance(Request $request)
+    {
+        try {
+            $distance = $request->query('distance'); 
+            $weightInGram = $request->query('weight') ?? 1000;
+            $weightKg = ceil($weightInGram / 1000);
 
-        // 3. RUMUS TUNGGAL
-        // Menghitung biaya berdasarkan jarak tempuh dan beban paket
-        $totalOngkir = ($distance * $pricePerKm) + ($weightKg * $pricePerKg);
+            $pricePerKm = 200;   
+            $pricePerKg = 15000; 
 
-        // 4. BATAS MINIMAL (Safety Net)
-        // Menjamin biaya operasional dasar (seperti packing) tertutup
-        $totalOngkir = max($totalOngkir, 10000); 
+            $totalOngkir = ($distance * $pricePerKm) + ($weightKg * $pricePerKg);
+            $totalOngkir = max($totalOngkir, 10000); 
 
-        return response()->json([
-            'status' => 'success',
-            'cost' => round($totalOngkir),
-            'details' => [
-                'jarak' => round($distance, 2) . ' km',
-                'berat' => $weightKg . ' kg'
-            ]
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'cost' => round($totalOngkir),
+                'details' => [
+                    'jarak' => round($distance, 2) . ' km',
+                    'berat' => $weightKg . ' kg'
+                ]
+            ]);
 
-    } catch (\Exception $e) {
-        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
     }
-}
 }
