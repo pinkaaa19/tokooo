@@ -333,7 +333,6 @@
         </div>
     </div>
 </div>
-
 <script>
     // --- SLIDER LOGIC ---
     const mainImgElem = document.getElementById("mainImage");
@@ -365,12 +364,20 @@
     function increment() { qtyInput.value = parseInt(qtyInput.value) + 1; updatePrice(); }
     function decrement() { if (parseInt(qtyInput.value) > 1) { qtyInput.value = parseInt(qtyInput.value) - 1; updatePrice(); } }
 
-    // --- KMS MODAL LOGIC WITH HISTORY ---
+    // --- KMS MODAL LOGIC WITH HISTORY & SPEECH SYNTHESIS ---
+    // FIX: Hanya mendeklarasikan variabel penampung global SEKALI SAJA di bagian atas
     const synth = window.speechSynthesis;
     let kmsHistory = [];
     let currentKmsData = null;
-    let typewriterInterval;
-    let lipSyncInterval;
+    let typewriterInterval = null;
+    let lipSyncInterval = null;
+
+    // PENGAMAN ASINKRONUS: Memaksa browser memuat daftar mesin suara di latar belakang
+    if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = () => {
+            synth.getVoices();
+        };
+    }
 
     function updateKmsContent(data, isBackAction = false) {
         if (!isBackAction && currentKmsData) {
@@ -379,8 +386,12 @@
         currentKmsData = data;
 
         const backNav = document.getElementById('kmsBackNav');
-        kmsHistory.length > 0 ? backNav.classList.remove('hidden') : backNav.classList.add('hidden');
-        document.getElementById('kmsScrollArea').scrollTop = 0;
+        if (backNav) {
+            kmsHistory.length > 0 ? backNav.classList.remove('hidden') : backNav.classList.add('hidden');
+        }
+        
+        const scrollArea = document.getElementById('kmsScrollArea');
+        if (scrollArea) scrollArea.scrollTop = 0;
 
         document.getElementById('kmsTitle').innerText = data.title;
         document.getElementById('valName').innerText = data.title;
@@ -388,12 +399,14 @@
         document.getElementById('valSource').innerText = data.source || 'Aldy Art Toraja';
         
         const sourceLink = document.getElementById('valSourceLink');
-        if (data.source && (data.source.includes('http://') || data.source.includes('https://'))) {
-            sourceLink.href = data.source;
-            sourceLink.style.pointerEvents = 'auto';
-        } else {
-            sourceLink.href = 'javascript:void(0)';
-            sourceLink.style.pointerEvents = 'none';
+        if (sourceLink) {
+            if (data.source && (data.source.includes('http://') || data.source.includes('https://'))) {
+                sourceLink.href = data.source;
+                sourceLink.style.pointerEvents = 'auto';
+            } else {
+                sourceLink.href = 'javascript:void(0)';
+                sourceLink.style.pointerEvents = 'none';
+            }
         }
         
         const dateObj = data.updated_at ? new Date(data.updated_at) : new Date();
@@ -404,130 +417,131 @@
         runTypewriter('kmsDescription', data.description);
 
         const mediaContainer = document.getElementById('kmsMediaContainer');
-        mediaContainer.innerHTML = ''; 
-        let hasMedia = false;
+        if (mediaContainer) {
+            mediaContainer.innerHTML = ''; 
+            let hasMedia = false;
 
-        const vUrl = data.video_url || data.video;
-        const vId = vUrl && vUrl.trim() !== "" ? extractYoutubeId(vUrl) : null;
-        if (vId) {
-            hasMedia = true;
-            mediaContainer.innerHTML += `<div class="w-full aspect-square bg-black rounded-[2.5rem] overflow-hidden shadow-md border border-stone-200"><iframe class="w-full h-full" src="https://www.youtube.com/embed/${vId}" frameborder="0" allowfullscreen></iframe></div>`;
-        }
+            // RESPONSIVE MOBILE: Otomatis 1 kolom di HP (grid-cols-1), 2 kolom di Laptop (md:grid-cols-2) jika ada gambar & video
+            mediaContainer.className = "grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-6";
 
-        let imgPath = data.file_path || data.path || '';
-        if (imgPath && imgPath !== 'null' && imgPath.trim() !== "") {
-            if (!imgPath.includes('http') && !imgPath.startsWith('storage/')) imgPath = '/storage/' + imgPath;
-            hasMedia = true;
-            mediaContainer.innerHTML += `<div class="w-full aspect-square bg-stone-100 rounded-[2.5rem] overflow-hidden shadow-md border border-stone-200"><img src="${imgPath}" class="w-full h-full object-cover animate-in"></div>`;
-        }
-        if (!hasMedia) {
-            mediaContainer.innerHTML = `<div class="w-full aspect-square bg-stone-50 rounded-[2.5rem] flex flex-col items-center justify-center text-stone-300 border border-dashed border-stone-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="text-[8px] font-black uppercase tracking-[0.2em]">Dokumentasi Belum Tersedia</span></div>`;
+            const vUrl = data.video_url || data.video;
+            const vId = vUrl && vUrl.trim() !== "" ? extractYoutubeId(vUrl) : null;
+            if (vId) {
+                hasMedia = true;
+                // Menggunakan aspek video proporsional di HP (aspect-video) agar tidak terpotong, dan kotak di PC (md:aspect-square)
+                mediaContainer.innerHTML += `<div class="w-full aspect-video md:aspect-square bg-black rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-md border border-stone-200"><iframe class="w-full h-full" src="https://www.youtube.com/embed/${vId}" frameborder="0" allowfullscreen></iframe></div>`;
+            }
+
+            let imgPath = data.file_path || data.path || '';
+            if (imgPath && imgPath !== 'null' && imgPath.trim() !== "") {
+                if (!imgPath.includes('http') && !imgPath.startsWith('storage/')) imgPath = '/storage/' + imgPath;
+                hasMedia = true;
+                mediaContainer.innerHTML += `<div class="w-full aspect-square bg-stone-100 rounded-2xl md:rounded-[2.5rem] overflow-hidden shadow-md border border-stone-200"><img src="${imgPath}" class="w-full h-full object-cover animate-in"></div>`;
+            }
+            if (!hasMedia) {
+                // Jika tidak ada media, buat kontainer flex persegi yang rapi menyesuaikan layar
+                mediaContainer.className = "w-full mb-6";
+                mediaContainer.innerHTML = `<div class="w-full aspect-square bg-stone-50 rounded-2xl md:rounded-[2.5rem] flex flex-col items-center justify-center text-stone-300 border border-dashed border-stone-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="text-[8px] font-black uppercase tracking-[0.2em]">Dokumentasi Belum Tersedia</span></div>`;
+            }
         }
 
         const relatedContainer = document.getElementById('relatedContainer');
         const sectionRelated = document.getElementById('sectionRelated');
-        relatedContainer.innerHTML = '';
-        if (data.related_motifs && data.related_motifs.length > 0) {
-            sectionRelated.classList.remove('hidden');
-            data.related_motifs.forEach(motif => {
-                let mPath = motif.file_path || '';
-                if (mPath && !mPath.includes('http') && !mPath.startsWith('storage/')) mPath = '/storage/' + mPath;
-                const card = document.createElement('div');
-                card.className = "bg-white p-2 rounded-2xl border border-stone-100 shadow-sm cursor-pointer hover:border-[#8B0000] transition group text-center";
-                card.onclick = () => updateKmsContent(motif);
-                card.innerHTML = `<div class="w-full aspect-square bg-stone-50 rounded-xl overflow-hidden mb-2"><img src="${mPath}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" onerror="this.src='/images/default-kms.jpg'"></div><p class="text-[8px] font-black uppercase text-center truncate px-1">${motif.title}</p>`;
-                relatedContainer.appendChild(card);
-            });
-        } else { sectionRelated.classList.add('hidden'); }
-    }
-// Deklarasi global agar bisa diakses dan dibersihkan lintas aksi play/cancel
-const synth = window.speechSynthesis;
-let lipSyncInterval = null;
-
-// PENGAMAN ASINKRONUS: Memaksa browser (terutama Chrome) memuat daftar mesin suara di latar belakang
-if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = () => {
-        synth.getVoices();
-    };
-}
-
-function playKmsNarration(text) {
-    // Pengaman jika browser pengakses tidak mendukung fitur TTS
-    if (!('speechSynthesis' in window)) {
-        console.warn("Fitur Text-to-Speech tidak didukung oleh browser ini.");
-        return;
+        if (relatedContainer && sectionRelated) {
+            relatedContainer.innerHTML = '';
+            if (data.related_motifs && data.related_motifs.length > 0) { 
+                sectionRelated.classList.remove('hidden');
+                
+                // RESPONSIVE MOBILE: Menampilkan 3 kolom grid di HP (grid-cols-3) dan 4 kolom di Laptop (md:grid-cols-4)
+                relatedContainer.className = "grid grid-cols-3 md:grid-cols-4 gap-3";
+                
+                data.related_motifs.forEach(motif => {
+                    let mPath = motif.file_path || '';
+                    if (mPath && !mPath.includes('http') && !mPath.startsWith('storage/')) mPath = '/storage/' + mPath;
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-2 rounded-2xl border border-stone-100 shadow-sm cursor-pointer hover:border-[#8B0000] transition group text-center";
+                    card.onclick = () => updateKmsContent(motif);
+                    card.innerHTML = `<div class="w-full aspect-square bg-stone-50 rounded-xl overflow-hidden mb-2"><img src="${mPath}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" onerror="this.src='/images/default-kms.jpg'"></div><p class="text-[8px] font-black uppercase text-center truncate px-1">${motif.title}</p>`;
+                    relatedContainer.appendChild(card);
+                });
+            } else { sectionRelated.classList.add('hidden'); }
+        }
     }
 
-    // Jika sistem sedang membaca narasi lain, hentikan paksa sebelum memulai teks baru
-    if (synth.speaking) {
-        synth.cancel();
-    }
-    
-    const container = document.getElementById('narrator-container');
-    const waves = document.getElementById('voice-waves');
-    const status = document.getElementById('narrator-status');
-    const avatar = document.getElementById('avatar-img');
-    const imgDiam = avatar.getAttribute('data-diam');
-    const imgBicara = avatar.getAttribute('data-bicara');
+    function playKmsNarration(text) {
+        if (!('speechSynthesis' in window)) {
+            console.warn("Fitur Text-to-Speech tidak didukung oleh browser ini.");
+            return;
+        }
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'id-ID';
-    utterance.rate = 0.85; 
-    utterance.pitch = 1.1; 
-
-    // --- STRATEGI KUNCI: STANDARDISASI MESIN SUARA LINTAS BROWSER/OS ---
-    const availableVoices = synth.getVoices();
-    
-    // Menyaring mesin suara id-ID berkualitas tinggi milik Google atau Microsoft secara dinamis
-    const lockedVoice = availableVoices.find(voice => 
-        voice.lang === 'id-ID' && 
-        (voice.name.includes('Google') || voice.name.includes('Natural') || voice.name.includes('Microsoft'))
-    ) || availableVoices.find(voice => voice.lang === 'id-ID'); // Fallback ke suara Indonesia apa saja yang ada
-
-    if (lockedVoice) {
-        utterance.voice = lockedVoice;
-        console.log(`[KMS] Mengunci suara narator: ${lockedVoice.name}`);
-    }
-    // ------------------------------------------------------------------
-
-    utterance.onstart = () => {
-        container.classList.remove('hidden');
-        waves.classList.remove('hidden');
-        status.classList.add('opacity-100');
-        avatar.classList.add('scale-110', '-translate-y-4');
+        if (synth.speaking) {
+            synth.cancel();
+        }
         
-        clearInterval(lipSyncInterval);
-        lipSyncInterval = setInterval(() => {
-            avatar.src = (avatar.src === imgDiam) ? imgBicara : imgDiam;
-        }, 150);
-    };
+        const container = document.getElementById('narrator-container');
+        const waves = document.getElementById('voice-waves');
+        const status = document.getElementById('narrator-status');
+        const avatar = document.getElementById('avatar-img');
+        if (!avatar) return;
 
-    utterance.onend = () => {
-        waves.classList.add('hidden');
-        status.classList.remove('opacity-100');
-        avatar.classList.remove('scale-110', '-translate-y-4');
-        
-        clearInterval(lipSyncInterval);
-        avatar.src = imgDiam;
+        const imgDiam = avatar.getAttribute('data-diam');
+        const imgBicara = avatar.getAttribute('data-bicara');
 
-        setTimeout(() => { 
-            if (!synth.speaking) container.classList.add('hidden'); 
-        }, 3000);
-    };
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'id-ID';
+        utterance.rate = 0.85; 
+        utterance.pitch = 1.1; 
 
-    utterance.onerror = (event) => {
-        console.error("SpeechSynthesisUtterance Error:", event.error);
-        clearInterval(lipSyncInterval);
-        avatar.src = imgDiam;
-    };
+        // --- FILTERING AUDIO KONSISTEN BROWSER ---
+        const availableVoices = synth.getVoices();
+        const lockedVoice = availableVoices.find(voice => 
+            voice.lang === 'id-ID' && 
+            (voice.name.includes('Google') || voice.name.includes('Natural') || voice.name.includes('Microsoft'))
+        ) || availableVoices.find(voice => voice.lang === 'id-ID');
 
-    // Eksekusi penuturan makna filosofis produk budaya
-    synth.speak(utterance);
-}
+        if (lockedVoice) {
+            utterance.voice = lockedVoice;
+            console.log(`[KMS] Suara aktif: ${lockedVoice.name}`);
+        }
+
+        utterance.onstart = () => {
+            if (container) container.classList.remove('hidden');
+            if (waves) waves.classList.remove('hidden');
+            if (status) status.classList.add('opacity-100');
+            avatar.classList.add('scale-110', '-translate-y-4');
+            
+            clearInterval(lipSyncInterval);
+            lipSyncInterval = setInterval(() => {
+                avatar.src = (avatar.src === imgDiam) ? imgBicara : imgDiam;
+            }, 150);
+        };
+
+        utterance.onend = () => {
+            if (waves) waves.classList.add('hidden');
+            if (status) status.classList.remove('opacity-100');
+            avatar.classList.remove('scale-110', '-translate-y-4');
+            
+            clearInterval(lipSyncInterval);
+            avatar.src = imgDiam;
+
+            setTimeout(() => { 
+                if (!synth.speaking && container) container.classList.add('hidden'); 
+            }, 3000);
+        };
+
+        utterance.onerror = (event) => {
+            console.error("SpeechSynthesis Error:", event.error);
+            clearInterval(lipSyncInterval);
+            avatar.src = imgDiam;
+        };
+
+        synth.speak(utterance);
+    }
 
     function runTypewriter(id, text) {
         clearInterval(typewriterInterval);
         const el = document.getElementById(id);
+        if (!el) return;
         el.innerHTML = '';
         let i = 0;
         typewriterInterval = setInterval(() => {
@@ -544,9 +558,12 @@ function playKmsNarration(text) {
             updateKmsContent(previous, true);
         }
     }
+
     function closeKmsModal() {
-        document.getElementById('kmsModal').classList.add('hidden');
-        document.getElementById('narrator-container').classList.add('hidden');
+        const modal = document.getElementById('kmsModal');
+        const container = document.getElementById('narrator-container');
+        if (modal) modal.classList.add('hidden');
+        if (container) container.classList.add('hidden');
         document.body.style.overflow = 'auto';
         synth.cancel();
         clearInterval(typewriterInterval);
@@ -554,6 +571,7 @@ function playKmsNarration(text) {
     }
 
     function triggerKmsModal(btn) {
+        if (!btn) return;
         kmsHistory = [];
         currentKmsData = null;
         updateKmsContent({
@@ -566,7 +584,8 @@ function playKmsNarration(text) {
             updated_at: btn.getAttribute('data-updated'),
             related_motifs: JSON.parse(btn.getAttribute('data-related') || '[]')
         });
-        document.getElementById('kmsModal').classList.remove('hidden');
+        const modal = document.getElementById('kmsModal');
+        if (modal) modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden'; 
     }
 
@@ -579,30 +598,29 @@ function playKmsNarration(text) {
 
     window.onclick = function(e) { if (e.target.id == 'kmsModal') closeKmsModal(); }
 
-function sendFeedback(faqId, status) {
-    // Mengambil token langsung dari template Laravel, aman dari error "null"
-    const token = "{{ csrf_token() }}";
+    function sendFeedback(faqId, status) {
+        const token = "{{ csrf_token() }}";
 
-    fetch("{{ route('faq.feedback') }}", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": token
-        },
-        body: JSON.stringify({ 
-            faq_id: faqId, 
-            is_helpful: status 
+        fetch("{{ route('faq.feedback') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": token
+            },
+            body: JSON.stringify({ 
+                faq_id: faqId, 
+                is_helpful: status 
+            })
         })
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert(data.message);
-    })
-    .catch(err => {
-        console.error("Error:", err);
-        alert("Gagal terkirim, periksa koneksi.");
-    });
-}
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+        })
+        .catch(err => {
+            console.error("Error:", err);
+            alert("Gagal terkirim, periksa koneksi.");
+        });
+    }
 </script>
 
 <style>
@@ -612,10 +630,12 @@ function sendFeedback(faqId, status) {
     }
     .asisten-idle { animation: asistenFloat 4s ease-in-out infinite; }
 
-    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+    /* Pengaturan Scrollbar Kustom */
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #8B0000; border-radius: 20px; }
-    .animate-in { animation: fadeIn 0.3s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    
+    /* Animasi Lembut Saat Pop-up Terbuka */
+    .animate-in { animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
 </style>
-@endsection
