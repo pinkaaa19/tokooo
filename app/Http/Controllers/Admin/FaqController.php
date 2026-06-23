@@ -11,7 +11,8 @@ class FaqController extends Controller
 {
     public function create()
     {
-        return view('admin.knowledge.faq.create');
+        // PERBAIKAN: Mengarah langsung ke admin/faq/create
+        return view('admin.faq.create');
     }
 
     public function store(Request $request)
@@ -19,13 +20,12 @@ class FaqController extends Controller
         $request->validate([
             'question' => 'required|string|max:255',
             'answer'   => 'required|string',
-            'category' => 'nullable|array' // Validasi untuk checkbox
+            'category' => 'nullable|array' 
         ]);
 
         FaqContent::create([
             'question' => $request->question,
             'answer'   => $request->answer,
-            // Ubah array kategori menjadi string koma-terpisah untuk disimpan di DB
             'category' => $request->has('category') ? implode(',', $request->category) : null,
         ]);
 
@@ -35,7 +35,8 @@ class FaqController extends Controller
     public function edit(int $id)
     {
         $faq = FaqContent::findOrFail($id);
-        return view('admin.knowledge.faq.edit', compact('faq'));
+        // PERBAIKAN: Mengarah langsung ke admin/faq/edit
+        return view('admin.faq.edit', compact('faq'));
     }
 
     public function update(Request $request, int $id)
@@ -51,7 +52,6 @@ class FaqController extends Controller
         $faq->update([
             'question' => $request->question,
             'answer'   => $request->answer,
-            // Update kategori
             'category' => $request->has('category') ? implode(',', $request->category) : null,
         ]);
 
@@ -69,17 +69,14 @@ class FaqController extends Controller
     public function show(int $id)
     {
         $faq = FaqContent::findOrFail($id);
-        return view('admin.knowledge.faq.show', compact('faq'));
+        // PERBAIKAN: Mengarah langsung ke admin/faq/show
+        return view('admin.faq.show', compact('faq'));
     }
-    // Tambahkan use di bagian atas
 
-
-// Tambahkan fungsi search (jika belum ada, buatlah)
-public function searchFaq(Request $request)
+    public function searchFaq(Request $request)
     {
         $query = $request->input('query');
         
-        // Validasi: Abaikan jika query terlalu pendek atau kosong
         if (empty($query) || strlen($query) < 2) {
             return view('faq.index', ['faqs' => FaqContent::all(), 'query' => $query]);
         }
@@ -88,7 +85,6 @@ public function searchFaq(Request $request)
                           ->orWhere('answer', 'LIKE', "%{$query}%")
                           ->get();
                           
-        // Knowledge Gap Detection: Catat jika pencarian tidak membuahkan hasil
         if ($faqs->isEmpty()) {
             SearchLog::create([
                 'keyword' => $query,
@@ -98,12 +94,15 @@ public function searchFaq(Request $request)
 
         return view('faq.index', compact('faqs', 'query'));
     }
-    public function report() {
-    $faqs = FaqContent::withCount([
-        'feedbacks as ya' => fn($q) => $q->where('is_helpful', 1),
-        'feedbacks as tidak' => fn($q) => $q->where('is_helpful', 0)
-    ])->get();
 
-    return view('admin.knowledge.faq.report', compact('faqs'));
-}
+    public function report() 
+    {
+        $faqs = FaqContent::withCount([
+            'feedbacks as ya' => fn($q) => $q->where('is_helpful', 1),
+            'feedbacks as tidak' => fn($q) => $q->where('is_helpful', 0)
+        ])->get();
+
+        // PERBAIKAN: Mengarah langsung ke admin/faq/report
+        return view('admin.faq.report', compact('faqs'));
+    }
 }
