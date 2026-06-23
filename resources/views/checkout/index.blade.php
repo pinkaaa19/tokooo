@@ -105,20 +105,17 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // 1. KONFIGURASI AWAL (Tallunglipu, Toraja Utara)
     const SHOP_LOCATION = L.latLng(-2.964527, 119.901500); 
     const SUB_TOTAL = parseInt("{{ $totalHarga }}") || 0;
     const TOTAL_WEIGHT = parseInt("{{ $totalWeight }}") || 1000;
     
     let userMarker; 
 
-    // Inisialisasi Peta
     const map = L.map('map').setView(SHOP_LOCATION, 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // 2. FUNGSI PENCARIAN
     function searchByAddressText() {
         const query = document.getElementById('address').value;
         if (query.length < 5) return alert("Masukkan alamat yang lebih spesifik agar pencarian akurat!");
@@ -137,7 +134,6 @@
             .catch(err => console.error("Geocoding Error:", err));
     }
 
-    // 3. LOGIKA PIN PADA PETA
     map.on('click', function(e) {
         movePin(e.latlng);
     });
@@ -154,7 +150,6 @@
         updateData(latlng);
     }
 
-    // 4. UPDATE DATA INTERNAL JAVASCRIPT
     async function updateData(latlng) {
         document.getElementById("latitude").value = latlng.lat;
         document.getElementById("longitude").value = latlng.lng;
@@ -173,7 +168,6 @@
         }
     }
 
-    // 5. HITUNG ONGKIR
     function getShippingPrice(distance) {
         const display = document.getElementById("shippingCostDisplay");
         const totalDisplay = document.getElementById("totalPriceDisplay");
@@ -204,7 +198,6 @@
             });
     }
 
-    // 6. PROTEKSI FRONTEND
     function validasiSebelumKirim() {
         const lat = document.getElementById("latitude").value;
         const grandTotal = document.getElementById("hid_total").value;
@@ -214,7 +207,6 @@
             alert("Silakan isi alamat lengkap pengiriman terlebih dahulu!");
             return false;
         }
-
         if (!lat || !grandTotal) {
             alert("Peta atau hitungan ongkir belum siap! Silakan klik lokasi pengiriman Anda di peta.");
             return false;
