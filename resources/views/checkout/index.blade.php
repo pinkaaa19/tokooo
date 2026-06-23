@@ -6,7 +6,19 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <div class="container mx-auto px-6 py-10">
-    <form id="checkoutForm" method="POST" action="{{ route('checkout.process') }}">
+
+    @if ($errors->any())
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-2xl mb-6 shadow-sm max-w-7xl mx-auto">
+            <strong class="font-bold uppercase text-xs tracking-wider block mb-1">Gagal Memproses Checkout:</strong>
+            <ul class="list-disc list-inside text-sm">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <form id="checkoutForm" method="POST" action="{{ route('checkout.process') }}" onsubmit="return validasiSebelumKirim()">
         @csrf
         <input type="hidden" id="totalWeight" value="{{ $totalWeight }}">
         <input type="hidden" id="subtotal" value="{{ $totalHarga }}">
@@ -97,17 +109,12 @@
         const query = document.getElementById('address').value;
         if (query.length < 5) return alert("Masukkan alamat yang lebih spesifik agar pencarian akurat!");
 
-        // Memanggil API Nominatim untuk mencari koordinat berdasarkan teks
         fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1`)
             .then(res => res.json())
             .then(data => {
                 if (data.length > 0) {
                     const latlng = L.latLng(data[0].lat, data[0].lon);
-                    
-                    // Peta berpindah ke lokasi hasil pencarian
                     map.flyTo(latlng, 16); 
-                    
-                    // Memasang atau memindahkan pin ke lokasi baru
                     movePin(latlng);
                 } else {
                     alert("Lokasi tidak ditemukan. Coba tambahkan nama kota atau kecamatan.");
@@ -139,16 +146,13 @@
         document.getElementById("longitude").value = latlng.lng;
 
         try {
-            // Mengambil alamat teks dari koordinat (Reverse Geocoding)
             const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}`);
             const data = await response.json();
             
-            // Mengisi input alamat dengan hasil dari peta
             document.getElementById("address").value = data.display_name;
 
             // Hitung Jarak (KM)
             const distance = SHOP_LOCATION.distanceTo(latlng) / 1000;
-
             getShippingPrice(distance);
 
         } catch (error) {
@@ -156,7 +160,7 @@
         }
     }
 
-    // 5. HITUNG ONGKIR (JARAK 500, BERAT 15000)
+    // 5. HITUNG ONGKIR
     function getShippingPrice(distance) {
         const display = document.getElementById("shippingCostDisplay");
         const totalDisplay = document.getElementById("totalPriceDisplay");
@@ -180,7 +184,23 @@
                     
                     btn.disabled = false;
                 }
+            })
+            .catch(err => {
+                console.error("Gagal memuat ongkir:", err);
+                display.innerText = "GAGAL MENGHITUNG ONGKIR";
             });
+    }
+
+    // 6. PROTEKSI SISI FRONTEND (Menahan klik kosong)
+    function validasiSebelumKirim() {
+        const lat = document.getElementById("latitude").value;
+        const grandTotal = document.getElementById("hid_total").value;
+
+        if (!lat || !grandTotal) {
+            alert("Peta atau Ongkir belum siap! Silakan klik/pilih lokasi pengiriman Anda di peta terlebih dahulu.");
+            return false; // Membatalkan submit paksa browser
+        }
+        return true; // Lanjut kirim ke backend jika data komplit
     }
 </script>
 @endsection
