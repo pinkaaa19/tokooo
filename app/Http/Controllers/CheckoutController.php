@@ -63,7 +63,7 @@ class CheckoutController extends Controller
         ));
     }
 
-    public function process(Request $request)
+public function process(Request $request)
     {
         // 1. Ambil array product_ids dari form input eksternal Blade
         $productIds = $request->input('product_ids', []);
@@ -89,14 +89,28 @@ class CheckoutController extends Controller
 
         DB::beginTransaction();
         try {
+            // PENGAMAN NILAI DEFAULT: Mencegah error 'doesn't have a default value' di MySQL
+            $shippingCost = $request->shipping_cost ?? 0;
+            $grandTotal = $request->grand_total ?? 0;
+            $totalPriceItems = $grandTotal - $shippingCost;
+
+            if ($totalPriceItems <= 0) {
+                $totalPriceItems = 0;
+                foreach ($productIds as $pId) {
+                    $prod = Product::find($pId);
+                    if ($prod) $totalPriceItems += $prod->price;
+                }
+                $grandTotal = $totalPriceItems + $shippingCost;
+            }
+
             // 3. Buat data transaksi utama di tabel orders
             $order = Order::create([
                 'user_id'            => Auth::id(),
                 'invoice_number'     => 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(5)),
-                'total_price_items'  => $request->grand_total - $request->shipping_cost,
-                'shipping_cost'      => $request->shipping_cost,
-                'grand_total'        => $request->grand_total,
-                'address_detail'     => $request->address_detail,
+                'total_price_items'  => $totalPriceItems,
+                'shipping_cost'      => $shippingCost,
+                'grand_total'        => $grandTotal,
+                'address_detail'     => $request->address_detail ?? 'Alamat tidak terisi',
                 'status'             => 'pending',
             ]);
 
@@ -110,13 +124,9 @@ class CheckoutController extends Controller
                         'quantity'   => 1,
                         'price'      => $product->price,
                     ]);
-
-                    // PENGAMAN ABSOLUT: Hanya menggunakan DB::table manual agar bebas dari eror nama tabel jamak/tunggal (1146)
-                    try {
-                        DB::table('cart')->where('user_id', Auth::id())->where('product_id', $product->id)->delete();
-                    } catch (\Exception $e) {
-                        DB::table('carts')->where('user_id', Auth::id())->where('product_id', $product->id)->delete();
-                    }
+                    
+                    // KODE DI SINI SUDAH DIBERSIHKAN: 
+                    // Tidak ada lagi query DB::table('cart')->delete() yang memicu eror 1146!
                 }
             }
 
