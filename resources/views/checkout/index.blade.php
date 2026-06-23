@@ -7,6 +7,13 @@
 
 <div class="container mx-auto px-6 py-10">
 
+    @if (session('error'))
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-2xl mb-6 shadow-sm max-w-7xl mx-auto">
+            <strong class="font-bold text-sm block mb-1">Eror Transaksi:</strong>
+            <p class="text-sm">{{ session('error') }}</p>
+        </div>
+    @endif
+
     @if ($errors->any())
         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-2xl mb-6 shadow-sm max-w-7xl mx-auto">
             <strong class="font-bold uppercase text-xs tracking-wider block mb-1">Gagal Memproses Checkout:</strong>
@@ -27,6 +34,12 @@
         <input type="hidden" id="hid_total" name="grand_total">
         <input type="hidden" id="latitude" name="latitude">
         <input type="hidden" id="longitude" name="longitude">
+
+        @if(isset($checkoutItems) && count($checkoutItems) > 0)
+            @foreach($checkoutItems as $item)
+                <input type="hidden" name="product_ids[]" value="{{ $item['id'] }}">
+            @endforeach
+        @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
             <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-stone-100">
@@ -195,12 +208,18 @@
     function validasiSebelumKirim() {
         const lat = document.getElementById("latitude").value;
         const grandTotal = document.getElementById("hid_total").value;
+        const address = document.getElementById("address").value;
+
+        if (!address || address.trim() === "") {
+            alert("Silakan isi alamat lengkap pengiriman terlebih dahulu!");
+            return false;
+        }
 
         if (!lat || !grandTotal) {
-            alert("Peta atau Ongkir belum siap! Silakan klik/pilih lokasi pengiriman Anda di peta terlebih dahulu.");
-            return false; // Membatalkan submit paksa browser
+            alert("Peta atau hitungan ongkir belum siap! Silakan klik/pilih lokasi pengiriman Anda di peta terlebih dahulu.");
+            return false;
         }
-        return true; // Lanjut kirim ke backend jika data komplit
+        return true; 
     }
 </script>
 @endsection
