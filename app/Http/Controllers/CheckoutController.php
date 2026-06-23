@@ -65,44 +65,23 @@ class CheckoutController extends Controller
 
     public function process(Request $request)
     {
-        // 1. VALIDASI DATA BACKEND (Mencegah submit kosong/bypass lokasi peta)
+        // 1. VALIDASI UTAMA BACKEND
         $request->validate([
             'address_detail' => 'required|string',
             'shipping_cost'  => 'required|numeric',
             'grand_total'    => 'required|numeric',
             'latitude'       => 'required',
             'longitude'      => 'required',
+            'product_ids'    => 'required|array', 
         ]);
-
-        // 2. AMBIL DATA DARI SESSION JIKA ADA, JIKA KOSONG AMBIL DARI DATABASE BERDASARKAN PROSES BELANJA
-        $cart = $request->session()->get('cart', []);
-        
-        // Pengaman Cadangan: Jika session kosong (karena beli langsung), buat array dummy dari produk aktif demi kelancaran simulasi
-        if (empty($cart)) {
-            $activeCart = Cart::where('user_id', Auth::id())->get();
-            if ($activeCart->isEmpty()) {
-                return back()->with('error', 'Gagal memproses checkout: Keranjang belanja Anda terdeteksi kosong.');
-            }
-            foreach ($activeCart as $cItem) {
-                $cart[$cItem->product_id] = [
-                    'price' => $cItem->product->price,
-                    'quantity' => $cItem->quantity ?? 1
-                ];
-            }
-        }
-
-        // Hitung total harga barang
-        $totalPriceItems = 0;
-        foreach ($cart as $item) {
-            $totalPriceItems += ($item['price'] * $item['quantity']);
-        }
 
         DB::beginTransaction();
         try {
+            // 2. BUAT DATA ORDER UTAMA
             $order = Order::create([
                 'user_id'            => Auth::id(),
                 'invoice_number'     => 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(5)),
-                'total_price_items'  => $totalPriceItems,
+                'total_price_items'  => $request->grand_total - $request->shipping_cost,
                 'shipping_cost'      => $request->shipping_cost,
                 'grand_total'        => $request->grand_total,
                 'address_detail'     => $request->address_detail,
@@ -111,20 +90,24 @@ class CheckoutController extends Controller
                 'status'             => 'pending',
             ]);
 
-            // Simpan rincian barang ke orders_item
-            foreach ($cart as $key => $details) {
-                $productId = explode('-', $key)[0];
-                OrderItem::create([
-                    'order_id'   => $order->id,
-                    'product_id' => $productId,
-                    'quantity'   => $details['quantity'],
-                    'price'      => $details['price'],
-                ]);
+            // 3. SIMPAN RINCIAN ITEM BERDASARKAN FORM DATA
+            foreach ($request->product_ids as $productId) {
+                $product = Product::find($productId);
+                if ($product) {
+                    OrderItem::create([
+                        'order_id'   => $order->id,
+                        'product_id' => $product->id,
+                        'quantity'   => 1,
+                        'price'      => $product->price,
+                    ]);
+
+                    // Bersihkan dari keranjang database (jika ada)
+                    Cart::where('user_id', Auth::id())->where('product_id', $product->id)->delete();
+                }
             }
 
-            // Hapus data keranjang lama yang sudah terbeli
+            // Bersihkan session
             $request->session()->forget('cart');
-            Cart::where('user_id', Auth::id())->delete();
             
             DB::commit();
 
