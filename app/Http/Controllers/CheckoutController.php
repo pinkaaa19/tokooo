@@ -170,7 +170,8 @@ public function process(Request $request)
                 'status'        => 'waiting_confirmation'
             ]);
 
-            return redirect()->route('order.success', $order->id);
+            // Mengalihkan secara instan menuju halaman pembayaran bukti transfer yang sesuai dengan web.php
+            return redirect()->route('checkout.payment.page', $order->id);
         }
 
         return back()->with('error', 'Gagal mengunggah gambar.');
