@@ -6,41 +6,15 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <div class="container mx-auto px-6 py-10">
-
-    @if (session('error'))
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-2xl mb-6 shadow-sm max-w-7xl mx-auto">
-            <strong class="font-bold text-sm block mb-1">Eror Transaksi:</strong>
-            <p class="text-sm">{{ session('error') }}</p>
-        </div>
-    @endif
-
-    @if ($errors->any())
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-2xl mb-6 shadow-sm max-w-7xl mx-auto">
-            <strong class="font-bold uppercase text-xs tracking-wider block mb-1">Gagal Memproses Checkout:</strong>
-            <ul class="list-disc list-inside text-sm">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
-    <form id="checkoutForm" method="POST" action="{{ route('checkout.process') }}" onsubmit="return validasiSebelumKirim()">
+    <form id="checkoutForm" method="POST" action="{{ route('checkout.process') }}">
         @csrf
         <input type="hidden" id="totalWeight" value="{{ $totalWeight }}">
         <input type="hidden" id="subtotal" value="{{ $totalHarga }}">
 
         <input type="hidden" id="hid_shipping" name="shipping_cost">
         <input type="hidden" id="hid_total" name="grand_total">
-        
-        <input type="hidden" id="latitude">
-        <input type="hidden" id="longitude">
-
-        @if(isset($checkoutItems) && count($checkoutItems) > 0)
-            @foreach($checkoutItems as $item)
-                <input type="hidden" name="product_ids[]" value="{{ $item['id'] }}">
-            @endforeach
-        @endif
+        <input type="hidden" id="latitude" name="latitude">
+        <input type="hidden" id="longitude" name="longitude">
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
             <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-stone-100">
@@ -105,27 +79,35 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+    // 1. KONFIGURASI AWAL (Tallunglipu, Toraja Utara)
     const SHOP_LOCATION = L.latLng(-2.964527, 119.901500); 
     const SUB_TOTAL = parseInt("{{ $totalHarga }}") || 0;
     const TOTAL_WEIGHT = parseInt("{{ $totalWeight }}") || 1000;
     
     let userMarker; 
 
+    // Inisialisasi Peta
     const map = L.map('map').setView(SHOP_LOCATION, 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
+    // 2. FUNGSI PENCARIAN (TEXT TO MAP / GEOCODING)
     function searchByAddressText() {
         const query = document.getElementById('address').value;
         if (query.length < 5) return alert("Masukkan alamat yang lebih spesifik agar pencarian akurat!");
 
+        // Memanggil API Nominatim untuk mencari koordinat berdasarkan teks
         fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1`)
             .then(res => res.json())
             .then(data => {
                 if (data.length > 0) {
                     const latlng = L.latLng(data[0].lat, data[0].lon);
+                    
+                    // Peta berpindah ke lokasi hasil pencarian
                     map.flyTo(latlng, 16); 
+                    
+                    // Memasang atau memindahkan pin ke lokasi baru
                     movePin(latlng);
                 } else {
                     alert("Lokasi tidak ditemukan. Coba tambahkan nama kota atau kecamatan.");
@@ -134,6 +116,7 @@
             .catch(err => console.error("Geocoding Error:", err));
     }
 
+    // 3. LOGIKA PIN PADA PETA
     map.on('click', function(e) {
         movePin(e.latlng);
     });
@@ -150,17 +133,22 @@
         updateData(latlng);
     }
 
+    // 4. UPDATE DATA & REVERSE GEOCODING
     async function updateData(latlng) {
         document.getElementById("latitude").value = latlng.lat;
         document.getElementById("longitude").value = latlng.lng;
 
         try {
+            // Mengambil alamat teks dari koordinat (Reverse Geocoding)
             const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}`);
             const data = await response.json();
             
+            // Mengisi input alamat dengan hasil dari peta
             document.getElementById("address").value = data.display_name;
 
+            // Hitung Jarak (KM)
             const distance = SHOP_LOCATION.distanceTo(latlng) / 1000;
+
             getShippingPrice(distance);
 
         } catch (error) {
@@ -168,6 +156,7 @@
         }
     }
 
+    // 5. HITUNG ONGKIR (JARAK 500, BERAT 15000)
     function getShippingPrice(distance) {
         const display = document.getElementById("shippingCostDisplay");
         const totalDisplay = document.getElementById("totalPriceDisplay");
@@ -191,27 +180,7 @@
                     
                     btn.disabled = false;
                 }
-            })
-            .catch(err => {
-                console.error("Gagal memuat ongkir:", err);
-                display.innerText = "GAGAL MENGHITUNG ONGKIR";
             });
-    }
-
-    function validasiSebelumKirim() {
-        const lat = document.getElementById("latitude").value;
-        const grandTotal = document.getElementById("hid_total").value;
-        const address = document.getElementById("address").value;
-
-        if (!address || address.trim() === "") {
-            alert("Silakan isi alamat lengkap pengiriman terlebih dahulu!");
-            return false;
-        }
-        if (!lat || !grandTotal) {
-            alert("Peta atau hitungan ongkir belum siap! Silakan klik lokasi pengiriman Anda di peta.");
-            return false;
-        }
-        return true; 
     }
 </script>
 @endsection
