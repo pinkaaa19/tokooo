@@ -5,13 +5,13 @@
     <h2 class="text-3xl font-black text-gray-900 uppercase italic tracking-tighter">
         Tambah <span class="text-[#8B0000]">FAQ Produk Baru</span>
     </h2>
-    <a href="{{ route('faq.index') }}" class="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-black transition">
+    <a href="{{ route('admin.faq.index') }}" class="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-black transition">
         &larr; Batal
     </a>
 </div>
 
 <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-gray-100 max-w-2xl mx-auto">
-    <form action="{{ route('faq.store') }}" method="POST" class="space-y-6">
+    <form action="{{ route('admin.faq.store') }}" method="POST" class="space-y-6">
         @csrf
         
         {{-- INPUT PERTANYAAN --}}
