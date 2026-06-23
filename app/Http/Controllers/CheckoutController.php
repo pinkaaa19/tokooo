@@ -63,7 +63,7 @@ class CheckoutController extends Controller
         ));
     }
 
-public function process(Request $request)
+    public function process(Request $request)
     {
         // 1. Ambil array product_ids dari form input eksternal Blade
         $productIds = $request->input('product_ids', []);
@@ -124,9 +124,6 @@ public function process(Request $request)
                         'quantity'   => 1,
                         'price'      => $product->price,
                     ]);
-                    
-                    // KODE DI SINI SUDAH DIBERSIHKAN: 
-                    // Tidak ada lagi query DB::table('cart')->delete() yang memicu eror 1146!
                 }
             }
 
@@ -134,8 +131,8 @@ public function process(Request $request)
             $request->session()->forget('cart');
             DB::commit();
 
-            // Mengalihkan secara instan menuju halaman pembayaran bukti transfer
-            return redirect()->route('order.payment', $order->id);
+            // PERBAIKAN 1: Mengalihkan secara tepat menuju rute checkout.payment.page sesuai web.php
+            return redirect()->route('checkout.payment.page', $order->id);
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -170,8 +167,8 @@ public function process(Request $request)
                 'status'        => 'waiting_confirmation'
             ]);
 
-            // Mengalihkan secara instan menuju halaman pembayaran bukti transfer yang sesuai dengan web.php
-            return redirect()->route('checkout.payment.page', $order->id);
+            // PERBAIKAN 2: Setelah upload sukses, dialihkan ke rute sukses (bukan kembali ke halaman bayar)
+            return redirect()->route('order.success', $order->id);
         }
 
         return back()->with('error', 'Gagal mengunggah gambar.');
