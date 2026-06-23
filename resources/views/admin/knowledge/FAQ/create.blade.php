@@ -5,7 +5,7 @@
     <h2 class="text-3xl font-black text-gray-900 uppercase italic tracking-tighter">
         Tambah <span class="text-[#8B0000]">FAQ Produk Baru</span>
     </h2>
-    <a href="{{ route('admin.knowledge.index') }}" class="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-black transition">
+    <a href="{{ route('faq.index') }}" class="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-black transition">
         &larr; Batal
     </a>
 </div>
