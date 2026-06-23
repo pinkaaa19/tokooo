@@ -65,19 +65,17 @@ class CheckoutController extends Controller
 
     public function process(Request $request)
     {
-        // 1. VALIDASI UTAMA BACKEND
+        // 1. Validasi data form input eksternal
         $request->validate([
             'address_detail' => 'required|string',
             'shipping_cost'  => 'required|numeric',
             'grand_total'    => 'required|numeric',
-            'latitude'       => 'required',
-            'longitude'      => 'required',
             'product_ids'    => 'required|array', 
         ]);
 
         DB::beginTransaction();
         try {
-            // 2. BUAT DATA ORDER UTAMA
+            // 2. Buat data order ke dalam database tanpa melibatkan latitude/longitude
             $order = Order::create([
                 'user_id'            => Auth::id(),
                 'invoice_number'     => 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(5)),
@@ -85,12 +83,10 @@ class CheckoutController extends Controller
                 'shipping_cost'      => $request->shipping_cost,
                 'grand_total'        => $request->grand_total,
                 'address_detail'     => $request->address_detail,
-                'latitude'           => $request->latitude,
-                'longitude'          => $request->longitude,
                 'status'             => 'pending',
             ]);
 
-            // 3. SIMPAN RINCIAN ITEM BERDASARKAN FORM DATA
+            // 3. Loop item berdasarkan ID produk yang dikirim Form
             foreach ($request->product_ids as $productId) {
                 $product = Product::find($productId);
                 if ($product) {
@@ -101,14 +97,12 @@ class CheckoutController extends Controller
                         'price'      => $product->price,
                     ]);
 
-                    // Bersihkan dari keranjang database (jika ada)
+                    // Bersihkan record cart di database
                     Cart::where('user_id', Auth::id())->where('product_id', $product->id)->delete();
                 }
             }
 
-            // Bersihkan session
             $request->session()->forget('cart');
-            
             DB::commit();
 
             return redirect()->route('order.payment', $order->id);
