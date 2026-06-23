@@ -634,4 +634,4 @@
     .animate-in { animation: fadeIn 0.22s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.99); } to { opacity: 1; transform: scale(1); } }
 </style>
-@endsection ```
+@endsection 
