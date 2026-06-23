@@ -32,8 +32,9 @@
 
         <input type="hidden" id="hid_shipping" name="shipping_cost">
         <input type="hidden" id="hid_total" name="grand_total">
-        <input type="hidden" id="latitude" name="latitude">
-        <input type="hidden" id="longitude" name="longitude">
+        
+        <input type="hidden" id="latitude">
+        <input type="hidden" id="longitude">
 
         @if(isset($checkoutItems) && count($checkoutItems) > 0)
             @foreach($checkoutItems as $item)
@@ -117,7 +118,7 @@
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // 2. FUNGSI PENCARIAN (TEXT TO MAP / GEOCODING)
+    // 2. FUNGSI PENCARIAN
     function searchByAddressText() {
         const query = document.getElementById('address').value;
         if (query.length < 5) return alert("Masukkan alamat yang lebih spesifik agar pencarian akurat!");
@@ -153,7 +154,7 @@
         updateData(latlng);
     }
 
-    // 4. UPDATE DATA & REVERSE GEOCODING
+    // 4. UPDATE DATA INTERNAL JAVASCRIPT
     async function updateData(latlng) {
         document.getElementById("latitude").value = latlng.lat;
         document.getElementById("longitude").value = latlng.lng;
@@ -164,7 +165,6 @@
             
             document.getElementById("address").value = data.display_name;
 
-            // Hitung Jarak (KM)
             const distance = SHOP_LOCATION.distanceTo(latlng) / 1000;
             getShippingPrice(distance);
 
@@ -204,7 +204,7 @@
             });
     }
 
-    // 6. PROTEKSI SISI FRONTEND (Menahan klik kosong)
+    // 6. PROTEKSI FRONTEND
     function validasiSebelumKirim() {
         const lat = document.getElementById("latitude").value;
         const grandTotal = document.getElementById("hid_total").value;
@@ -216,7 +216,7 @@
         }
 
         if (!lat || !grandTotal) {
-            alert("Peta atau hitungan ongkir belum siap! Silakan klik/pilih lokasi pengiriman Anda di peta terlebih dahulu.");
+            alert("Peta atau hitungan ongkir belum siap! Silakan klik lokasi pengiriman Anda di peta.");
             return false;
         }
         return true; 
