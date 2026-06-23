@@ -115,15 +115,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         'destroy' => 'sop.destroy',
     ]);
 
-Route::resource('faq', FaqController::class)->names([
-        'index'   => 'admin.faq.index',
-        'create'  => 'admin.faq.create',
-        'store'   => 'admin.faq.store',
-        'show'    => 'admin.faq.show', 
-        'edit'    => 'admin.faq.edit',
-        'update'  => 'admin.faq.update',
-        'destroy' => 'admin.faq.destroy',
-    ]);
+    Route::resource('faq', FaqController::class)->names([
+        'index'   => 'faq.index',
+        'create'  => 'faq.create',
+        'store'   => 'faq.store',
+        'show'    => 'faq.show',
+        'edit'    => 'faq.edit',
+        'update'  => 'faq.update',
+        'destroy' => 'faq.destroy',
+    ]);
 
     // Manajemen Produk (Admin)
     Route::get('products/image/{id}/delete', [AdminProduct::class, 'deleteImage'])->name('products.deleteImage');
