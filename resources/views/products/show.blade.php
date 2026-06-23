@@ -440,47 +440,90 @@
             });
         } else { sectionRelated.classList.add('hidden'); }
     }
+// Deklarasi global agar bisa diakses dan dibersihkan lintas aksi play/cancel
+const synth = window.speechSynthesis;
+let lipSyncInterval = null;
 
-    function playKmsNarration(text) {
-        if (synth.speaking) synth.cancel();
-        
-        const container = document.getElementById('narrator-container');
-        const waves = document.getElementById('voice-waves');
-        const status = document.getElementById('narrator-status');
-        const avatar = document.getElementById('avatar-img');
-        const imgDiam = avatar.getAttribute('data-diam');
-        const imgBicara = avatar.getAttribute('data-bicara');
+// PENGAMAN ASINKRONUS: Memaksa browser (terutama Chrome) memuat daftar mesin suara di latar belakang
+if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = () => {
+        synth.getVoices();
+    };
+}
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'id-ID';
-        utterance.rate = 0.85; 
-        utterance.pitch = 1.1; 
-
-        utterance.onstart = () => {
-            container.classList.remove('hidden');
-            waves.classList.remove('hidden');
-            status.classList.add('opacity-100');
-            avatar.classList.add('scale-110', '-translate-y-4');
-            
-            clearInterval(lipSyncInterval);
-            lipSyncInterval = setInterval(() => {
-                avatar.src = (avatar.src === imgDiam) ? imgBicara : imgDiam;
-            }, 150);
-        };
-
-        utterance.onend = () => {
-            waves.classList.add('hidden');
-            status.classList.remove('opacity-100');
-            avatar.classList.remove('scale-110', '-translate-y-4');
-            
-            clearInterval(lipSyncInterval);
-            avatar.src = imgDiam;
-
-            setTimeout(() => { if (!synth.speaking) container.classList.add('hidden'); }, 3000);
-        };
-
-        synth.speak(utterance);
+function playKmsNarration(text) {
+    // Pengaman jika browser pengakses tidak mendukung fitur TTS
+    if (!('speechSynthesis' in window)) {
+        console.warn("Fitur Text-to-Speech tidak didukung oleh browser ini.");
+        return;
     }
+
+    // Jika sistem sedang membaca narasi lain, hentikan paksa sebelum memulai teks baru
+    if (synth.speaking) {
+        synth.cancel();
+    }
+    
+    const container = document.getElementById('narrator-container');
+    const waves = document.getElementById('voice-waves');
+    const status = document.getElementById('narrator-status');
+    const avatar = document.getElementById('avatar-img');
+    const imgDiam = avatar.getAttribute('data-diam');
+    const imgBicara = avatar.getAttribute('data-bicara');
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'id-ID';
+    utterance.rate = 0.85; 
+    utterance.pitch = 1.1; 
+
+    // --- STRATEGI KUNCI: STANDARDISASI MESIN SUARA LINTAS BROWSER/OS ---
+    const availableVoices = synth.getVoices();
+    
+    // Menyaring mesin suara id-ID berkualitas tinggi milik Google atau Microsoft secara dinamis
+    const lockedVoice = availableVoices.find(voice => 
+        voice.lang === 'id-ID' && 
+        (voice.name.includes('Google') || voice.name.includes('Natural') || voice.name.includes('Microsoft'))
+    ) || availableVoices.find(voice => voice.lang === 'id-ID'); // Fallback ke suara Indonesia apa saja yang ada
+
+    if (lockedVoice) {
+        utterance.voice = lockedVoice;
+        console.log(`[KMS] Mengunci suara narator: ${lockedVoice.name}`);
+    }
+    // ------------------------------------------------------------------
+
+    utterance.onstart = () => {
+        container.classList.remove('hidden');
+        waves.classList.remove('hidden');
+        status.classList.add('opacity-100');
+        avatar.classList.add('scale-110', '-translate-y-4');
+        
+        clearInterval(lipSyncInterval);
+        lipSyncInterval = setInterval(() => {
+            avatar.src = (avatar.src === imgDiam) ? imgBicara : imgDiam;
+        }, 150);
+    };
+
+    utterance.onend = () => {
+        waves.classList.add('hidden');
+        status.classList.remove('opacity-100');
+        avatar.classList.remove('scale-110', '-translate-y-4');
+        
+        clearInterval(lipSyncInterval);
+        avatar.src = imgDiam;
+
+        setTimeout(() => { 
+            if (!synth.speaking) container.classList.add('hidden'); 
+        }, 3000);
+    };
+
+    utterance.onerror = (event) => {
+        console.error("SpeechSynthesisUtterance Error:", event.error);
+        clearInterval(lipSyncInterval);
+        avatar.src = imgDiam;
+    };
+
+    // Eksekusi penuturan makna filosofis produk budaya
+    synth.speak(utterance);
+}
 
     function runTypewriter(id, text) {
         clearInterval(typewriterInterval);
