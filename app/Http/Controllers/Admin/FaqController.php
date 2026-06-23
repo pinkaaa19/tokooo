@@ -11,8 +11,8 @@ class FaqController extends Controller
 {
     public function create()
     {
-        // PERBAIKAN: Mengarah langsung ke admin/faq/create
-        return view('admin.faq.create');
+        // PERBAIKAN: Menggunakan 'FAQ' kapital sesuai nama folder fisik di views
+        return view('admin.knowledge.FAQ.create');
     }
 
     public function store(Request $request)
@@ -20,12 +20,13 @@ class FaqController extends Controller
         $request->validate([
             'question' => 'required|string|max:255',
             'answer'   => 'required|string',
-            'category' => 'nullable|array' 
+            'category' => 'nullable|array' // Validasi untuk checkbox
         ]);
 
         FaqContent::create([
             'question' => $request->question,
             'answer'   => $request->answer,
+            // Ubah array kategori menjadi string koma-terpisah untuk disimpan di DB
             'category' => $request->has('category') ? implode(',', $request->category) : null,
         ]);
 
@@ -35,8 +36,8 @@ class FaqController extends Controller
     public function edit(int $id)
     {
         $faq = FaqContent::findOrFail($id);
-        // PERBAIKAN: Mengarah langsung ke admin/faq/edit
-        return view('admin.faq.edit', compact('faq'));
+        // PERBAIKAN: Menggunakan 'FAQ' kapital sesuai nama folder fisik di views
+        return view('admin.knowledge.FAQ.edit', compact('faq'));
     }
 
     public function update(Request $request, int $id)
@@ -69,14 +70,15 @@ class FaqController extends Controller
     public function show(int $id)
     {
         $faq = FaqContent::findOrFail($id);
-        // PERBAIKAN: Mengarah langsung ke admin/faq/show
-        return view('admin.faq.show', compact('faq'));
+        // PERBAIKAN: Menggunakan 'FAQ' kapital sesuai nama folder fisik di views
+        return view('admin.knowledge.FAQ.show', compact('faq'));
     }
 
     public function searchFaq(Request $request)
     {
         $query = $request->input('query');
         
+        // Validasi: Abaikan jika query terlalu pendek atau kosong
         if (empty($query) || strlen($query) < 2) {
             return view('faq.index', ['faqs' => FaqContent::all(), 'query' => $query]);
         }
@@ -85,6 +87,7 @@ class FaqController extends Controller
                           ->orWhere('answer', 'LIKE', "%{$query}%")
                           ->get();
                           
+        // Knowledge Gap Detection: Catat jika pencarian tidak membuahkan hasil
         if ($faqs->isEmpty()) {
             SearchLog::create([
                 'keyword' => $query,
@@ -102,7 +105,7 @@ class FaqController extends Controller
             'feedbacks as tidak' => fn($q) => $q->where('is_helpful', 0)
         ])->get();
 
-        // PERBAIKAN: Mengarah langsung ke admin/faq/report
-        return view('admin.faq.report', compact('faqs'));
+        // PERBAIKAN: Menggunakan 'FAQ' kapital sesuai nama folder fisik di views
+        return view('admin.knowledge.FAQ.report', compact('faqs'));
     }
 }
