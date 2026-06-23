@@ -65,10 +65,10 @@ class CheckoutController extends Controller
 
     public function process(Request $request)
     {
-        // 1. Ambil array product_ids dari form input eksternal
+        // 1. Ambil array product_ids dari form input eksternal Blade
         $productIds = $request->input('product_ids', []);
         
-        // Cadangan Sistem: Jika form kiriman kosong, paksa baca isi session cart
+        // Cadangan: Jika form kiriman kosong, paksa baca isi session cart
         if (empty($productIds)) {
             $cartBackup = $request->session()->get('cart', []);
             foreach ($cartBackup as $key => $details) {
@@ -106,12 +106,12 @@ class CheckoutController extends Controller
                 if ($product) {
                     OrderItem::create([
                         'order_id'   => $order->id,
-                        'product_id' => $product->id, // Mencegah eror Column Not Found
+                        'product_id' => $product->id, 
                         'quantity'   => 1,
                         'price'      => $product->price,
                     ]);
 
-                    // Jalur Pengaman Penghapusan Record Keranjang Belanja (Anti Eror SQLSTATE 1146)
+                    // PENGAMAN ABSOLUT: Hanya menggunakan DB::table manual agar bebas dari eror nama tabel jamak/tunggal (1146)
                     try {
                         DB::table('cart')->where('user_id', Auth::id())->where('product_id', $product->id)->delete();
                     } catch (\Exception $e) {
@@ -124,7 +124,7 @@ class CheckoutController extends Controller
             $request->session()->forget('cart');
             DB::commit();
 
-            // SINKRONISASI MUTLAK: Mengalihkan user secara instan menuju halaman pembayaran bukti transfer
+            // Mengalihkan secara instan menuju halaman pembayaran bukti transfer
             return redirect()->route('order.payment', $order->id);
 
         } catch (\Exception $e) {
