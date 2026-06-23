@@ -22,32 +22,31 @@
                 </div>
             </div>
 
-        <div class="bg-stone-50 rounded-3xl p-8 mb-10 border border-stone-100">
-    <div class="flex items-center justify-center mb-8">
-        <div class="text-center">
-            <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mx-auto mb-4">
-                <i class="fa fa-qrcode text-3xl text-[#8B0000]"></i>
+            <div class="bg-stone-50 rounded-3xl p-8 mb-10 border border-stone-100">
+                <div class="flex items-center justify-center mb-8">
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mx-auto mb-4">
+                            <i class="fa fa-qrcode text-3xl text-[#8B0000]"></i>
+                        </div>
+                        <h4 class="font-black text-stone-800 uppercase italic">Pembayaran via QRIS</h4>
+                        <p class="text-stone-500 text-xs mt-1">Scan kode QR di bawah ini melalui aplikasi Bank atau E-Wallet.</p>
+                    </div>
+                </div>
+
+                {{-- Container Gambar QRIS --}}
+                <div class="bg-white p-6 rounded-[2rem] shadow-inner border border-stone-100 flex flex-col items-center">
+                    <img src="{{ asset('images/aldyart.jpeg') }}" 
+                         alt="QRIS Aldy Art" 
+                         class="w-full h-auto object-contain rounded-2xl">
+                    
+                    <div class="text-center border-t border-stone-100 pt-4 w-full">
+                        <span class="text-stone-400 text-[10px] font-bold uppercase tracking-widest block mb-1">Merchant Name</span>
+                        <span class="text-lg font-black text-stone-800 tracking-wider italic uppercase">ALDYART TLLNGLP</span>
+                    </div>
+                </div>
             </div>
-            <h4 class="font-black text-stone-800 uppercase italic">Pembayaran via QRIS</h4>
-            <p class="text-stone-500 text-xs mt-1">Scan kode QR di bawah ini melalui aplikasi Bank atau E-Wallet.</p>
-        </div>
-    </div>
 
-    {{-- Container Gambar QRIS --}}
-    <div class="bg-white p-6 rounded-[2rem] shadow-inner border border-stone-100 flex flex-col items-center">
-        {{-- Ganti 'qris-sample.png' dengan file QRIS aslimu di folder public/images --}}
-        <img src="{{ asset('images/aldyart.jpeg') }}" 
-             alt="QRIS Aldy Art" 
-             class="w-full h-auto object-contain rounded-2xl">
-        
-        <div class="text-center border-t border-stone-100 pt-4 w-full">
-            <span class="text-stone-400 text-[10px] font-bold uppercase tracking-widest block mb-1">Merchant Name</span>
-            <span class="text-lg font-black text-stone-800 tracking-wider italic uppercase">ALDYART TLLNGLP</span>
-        </div>
-    </div>
-</div>
-
-            <form action="{{ route('order.upload', $order->id) }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('customer.order.upload.page', $order->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="mb-8 text-center">
                     <label class="block text-stone-800 font-black uppercase text-sm mb-4 italic">
