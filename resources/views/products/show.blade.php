@@ -140,12 +140,6 @@
             </div>
         </div>
     @empty
-        <div class="text-center py-8 border-2 border-dashed border-stone-200 rounded-xl">
-            <p class="text-stone-400 text-xs mb-4 italic">Belum ada daftar tanya jawab seputar karakteristik produk ini.</p>
-            <button type="button" @click="activeInfoTab = 'contact'" class="text-[9px] font-black uppercase tracking-widest text-[#8B0000] underline">
-                Ajukan Pertanyaan ke Admin &rarr;
-            </button>
-        </div>
     @endforelse
 </div>
             {{-- SECTION KMS: FILOSOFI MOTIF INTERAKTIF --}}
