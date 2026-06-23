@@ -221,7 +221,7 @@
 
                 <div class="space-y-3">
                     @auth
-                        <button type="submit" name="button_action" value="add_to_cart" class="bg-stone-100 text-stone-900 w-full py-4.5 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-stone-200 transition-all active:scale-95 cursor-pointer">
+                        <button type="submit" name="button_action" value="add_to_cart" class="bg-stone-100 text-stone-900 w-full py-5 rounded-full font-black uppercase text-[10px] tracking-[0.2em] hover:bg-stone-200 transition-all active:scale-95 cursor-pointer">
                             + Keranjang
                         </button>
                         <button type="submit" name="button_action" value="add_to_checkout" class="bg-black text-white w-full py-4.5 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-[#8B0000] transition-all shadow-xl shadow-[#8B0000]/20 active:scale-95 cursor-pointer">
