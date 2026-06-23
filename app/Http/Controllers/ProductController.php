@@ -40,10 +40,10 @@ public function show(int $id)
     $sops = collect();
     $faqs = collect();
     
-    if ($foundMotif && !empty($foundMotif->group_name)) {
-        $sops = SopContent::where('category', 'LIKE', '%' . $foundMotif->group_name . '%')->get();
-        $faqs = FaqContent::where('category', 'LIKE', '%' . $foundMotif->group_name . '%')->get();
-    }
+if ($sops->isEmpty() && $faqs->isEmpty() && !empty($product->category)) {
+    $sops = SopContent::where('category', 'LIKE', '%' . $product->category . '%')->get();
+    $faqs = FaqContent::where('category', 'LIKE', '%' . $product->category . '%')->get();
+}
 
     return view('products.show', compact('product', 'foundMotif', 'sops', 'faqs'));
 }
