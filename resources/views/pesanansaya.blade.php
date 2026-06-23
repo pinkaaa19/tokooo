@@ -31,8 +31,7 @@
         </div>
     </div>
 
-
-
+    <div class="container mx-auto px-4 py-6">
         @if($orders->isEmpty())
             {{-- TAMPILAN JIKA KOSONG --}}
             <div class="bg-white p-20 rounded-sm shadow-sm text-center border border-stone-100">
@@ -64,10 +63,9 @@
                         </div>
                     </div>
 
-                    {{-- BODY: INFO PRODUK (DINAMIS) --}}
+                    {{-- BODY: INFO PRODUK --}}
                     <div class="p-5 flex gap-5">
                         <div class="w-20 h-20 bg-stone-50 rounded-sm shrink-0 overflow-hidden border border-stone-100">
-                            {{-- Mengambil gambar dari produk pertama di order_items --}}
                             @if($order->items->isNotEmpty() && $order->items->first()->product->images->isNotEmpty())
                                 <img src="{{ asset('storage/' . $order->items->first()->product->images->first()->image) }}" class="w-full h-full object-cover">
                             @else
@@ -75,7 +73,6 @@
                             @endif
                         </div>
                         <div class="flex-1">
-                            {{-- JUDUL: NOMOR ORDER & NAMA PRODUK --}}
                             <h4 class="text-sm font-bold text-stone-800 leading-tight">
                                 Order #{{ $order->invoice_number }} - 
                                 @if($order->items->isNotEmpty())
@@ -85,6 +82,7 @@
                                     @endif
                                 @else
                                     Produk Budaya Toraja
+                                </td>
                                 @endif
                             </h4>
                             <p class="text-[10px] text-stone-400 font-bold uppercase mt-2">Variasi: Original Handmade</p>
@@ -112,7 +110,8 @@
                                     Tampilkan Rincian
                                 </a>
                                 @if($order->status == 'pending')
-                                    <a href="{{ route('order.payment', $order->id) }}" 
+                                    <!-- PERBAIKAN DI SINI: Mengubah nama rute menjadi checkout.payment.page -->
+                                    <a href="{{ route('checkout.payment.page', $order->id) }}" 
                                        class="flex-1 md:flex-none text-center bg-[#8B0000] text-white px-6 py-2.5 rounded-sm text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-stone-900 transition-all">
                                         Bayar Sekarang
                                     </a>
